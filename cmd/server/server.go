@@ -62,6 +62,7 @@ var indexHtml = `
                         //滚动条滚动到底部
                         var scrollHeight = $('html').prop("scrollHeight");
                         $('html').scrollTop(scrollHeight, 200);
+						$(".buf").html("")
                     });
                 }
             });
