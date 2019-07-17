@@ -32,8 +32,13 @@ func main() {
 		nodeString := ctx.Param("node")
 		cmdString := ctx.Param("cmd")
 		queryString := ctx.Query("args")
-		reg := regexp.MustCompile("\\s+")
-		args := reg.Split(queryString, -1)
+		var args = make([]string, 0)
+		if len(queryString) > 0 {
+			reg := regexp.MustCompile("\\s+")
+			args = reg.Split(queryString, -1)
+		} else {
+			args = nil
+		}
 
 		cmdChan := manager.SendCmd(nodeString, cmdString, args)
 		result := <-cmdChan
