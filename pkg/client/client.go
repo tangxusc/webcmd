@@ -43,7 +43,7 @@ func (client *Client) Start() {
 
 	go client.sender(ctx, conn, resultChan)
 	client.listen(ctx, conn, resultChan)
-	conn.Close()
+	_ = conn.Close()
 	logrus.Infof("连接断开,开始重连[%s]...", client.url)
 }
 
@@ -65,7 +65,7 @@ func (client *Client) sender(ctx context.Context, conn *websocket.Conn, results 
 			}
 			closer, e := conn.NextWriter(websocket.TextMessage)
 			if e != nil {
-				closer.Close()
+				_ = closer.Close()
 				panic(e.Error())
 			}
 			n, e := closer.Write(bytes)
@@ -73,7 +73,7 @@ func (client *Client) sender(ctx context.Context, conn *websocket.Conn, results 
 				logrus.Errorf("closer.Write error:%v", e.Error())
 			}
 			logrus.Debugf("消息发送完成,写入字节:%v", n)
-			closer.Close()
+			_ = closer.Close()
 		}
 
 	}
@@ -153,10 +153,15 @@ func execCmd(event *cmd.CmdEvent) (*cmd.CmdResult, error) {
 	cmdResult := &cmd.CmdResult{
 		Id: event.Id,
 	}
-	closer, e := command.StdoutPipe()
+	out, e := command.StdoutPipe()
 	if e != nil {
 		return cmdResult, e
 	}
+	errOut, e := command.StderrPipe()
+	if e != nil {
+		return cmdResult, e
+	}
+	reader := io.MultiReader(errOut, out)
 	err := command.Start()
 	if err != nil {
 		return cmdResult, err
@@ -164,7 +169,7 @@ func execCmd(event *cmd.CmdEvent) (*cmd.CmdResult, error) {
 	buf := make([]byte, 1024*10, 1024*10)
 	bytes := make([]byte, 0, 1024*10*2)
 	for {
-		n, err := closer.Read(buf)
+		n, err := reader.Read(buf)
 		if err != nil && err != io.EOF {
 			return cmdResult, err
 		}
@@ -175,7 +180,7 @@ func execCmd(event *cmd.CmdEvent) (*cmd.CmdResult, error) {
 	}
 	e = command.Wait()
 	if e != nil {
-		return cmdResult, e
+		logrus.Warnf("执行命令出现错误,命令:%v,参数:%v,错误:%v", event.Cmd, event.Args, e)
 	}
 	cmdResult.Data = bytes
 	return cmdResult, nil
