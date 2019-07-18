@@ -149,7 +149,8 @@ func timeOut(event *cmd.CmdEvent) bool {
 }
 
 func execCmd(event *cmd.CmdEvent) (*cmd.CmdResult, error) {
-	command := exec.Command(event.Cmd, event.Args...)
+	command := exec.Command("/bin/sh", "-c", event.Cmd)
+	//command := exec.Command(event.Cmd, event.Args...)
 	cmdResult := &cmd.CmdResult{
 		Id: event.Id,
 	}
@@ -180,7 +181,7 @@ func execCmd(event *cmd.CmdEvent) (*cmd.CmdResult, error) {
 	}
 	e = command.Wait()
 	if e != nil {
-		logrus.Warnf("执行命令出现错误,命令:%v,参数:%v,错误:%v", event.Cmd, event.Args, e)
+		logrus.Warnf("执行命令出现错误,命令:%v,错误:%v", event.Cmd, e)
 	}
 	cmdResult.Data = bytes
 	return cmdResult, nil

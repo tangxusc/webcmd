@@ -17,7 +17,6 @@ type CmdEvent struct {
 	Id      string    `json:"id"`
 	Node    string    `json:"node"`
 	Cmd     string    `json:"cmd"`
-	Args    []string  `json:"args"`
 	TimeOut int       `json:"timeout,omitempty"`
 	EndTime time.Time `json:"end_time,omitempty"`
 }

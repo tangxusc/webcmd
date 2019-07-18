@@ -7,8 +7,6 @@ import (
 	"github.com/tangxusc/webcmd/pkg/server/conn_manager"
 	"net/http"
 	_ "net/http/pprof"
-	"regexp"
-	"strings"
 )
 
 const contentType = "text/plain;charset=utf-8"
@@ -56,13 +54,13 @@ var indexHtml = `
                     html = $(".cmdInputWarp label").html();
                     $(".content").append(html + " " + val + "</br>");
                     $(".cmdInputWarp input").val('');
-                    $(".buf").load("/node/127.0.0.1/cmd/" + encodeURIComponent(val), function () {
-						$(".cmdInputWarp input").focus();
+                    $(".buf").load("/node/127.0.0.1/cmd/?cmd=" + encodeURIComponent(val), function () {
+                        $(".cmdInputWarp input").focus();
                         $(".content").append($(".buf").html());
                         //滚动条滚动到底部
                         var scrollHeight = $('html').prop("scrollHeight");
                         $('html').scrollTop(scrollHeight, 200);
-						$(".buf").html("")
+                        $(".buf").html("");
                     });
                 }
             });
@@ -96,20 +94,11 @@ func main() {
 			panic(e.Error())
 		}
 	}))
-	engine.GET("/node/:node/cmd/:cmd", func(ctx *gin.Context) {
+	engine.GET("/node/:node/cmd/", func(ctx *gin.Context) {
 		nodeString := ctx.Param("node")
-		cmdString := ctx.Param("cmd")
-		cmdString = strings.TrimSpace(cmdString)
-		var args = make([]string, 0)
-		reg := regexp.MustCompile("\\s+")
-		split := reg.Split(cmdString, -1)
-		if len(split) > 1 {
-			args = split[1:]
-			cmdString = split[0]
-		} else {
-			args = nil
-		}
-		cmdChan := manager.SendCmd(nodeString, cmdString, args)
+		query := ctx.Query("cmd")
+
+		cmdChan := manager.SendCmd(nodeString, query)
 		result := <-cmdChan
 
 		if result == nil {
@@ -120,6 +109,7 @@ func main() {
 		ctx.Data(http.StatusOK, contentType, result.Data)
 	})
 	engine.GET("/index", func(ctx *gin.Context) {
+		//ctx.HTML(http.StatusOK, "index.html", "")
 		ctx.Data(http.StatusOK, "text/html", []byte(indexHtml))
 	})
 	//性能分析

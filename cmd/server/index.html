@@ -40,13 +40,13 @@
                     html = $(".cmdInputWarp label").html();
                     $(".content").append(html + " " + val + "</br>");
                     $(".cmdInputWarp input").val('');
-                    $(".buf").load("/node/127.0.0.1/cmd/" + encodeURIComponent(val), function () {
+                    $(".buf").load("/node/127.0.0.1/cmd/?cmd=" + encodeURIComponent(val), function () {
                         $(".cmdInputWarp input").focus();
                         $(".content").append($(".buf").html());
                         //滚动条滚动到底部
                         var scrollHeight = $('html').prop("scrollHeight");
                         $('html').scrollTop(scrollHeight, 200);
-                        $(".buf").html("")
+                        $(".buf").html("");
                     });
                 }
             });

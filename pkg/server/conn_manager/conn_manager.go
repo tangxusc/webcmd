@@ -89,11 +89,10 @@ func (manager *ConnManager) Start(ctx context.Context) {
 	}()
 }
 
-func (manager *ConnManager) SendCmd(node string, cmdString string, args []string) chan *cmd.CmdResult {
+func (manager *ConnManager) SendCmd(node string, cmdString string) chan *cmd.CmdResult {
 	event := cmd.NewCmdEvent()
 	event.Node = node
 	event.Cmd = cmdString
-	event.Args = args
 	add := time.Now().Add(time.Second * time.Duration(event.TimeOut))
 	event.EndTime = add
 
