@@ -87,7 +87,7 @@ func main() {
 	manager.Start(todo)
 
 	engine := gin.Default()
-	engine.LoadHTMLGlob("/home/tangxu/openProject/webcmd/cmd/server/*.html")
+	//engine.LoadHTMLGlob("/home/tangxu/openProject/webcmd/cmd/server/*.html")
 	engine.GET("/events", gin.WrapF(func(writer http.ResponseWriter, request *http.Request) {
 		_, e := manager.Upgrade(writer, request, todo)
 		if e != nil {

@@ -6,20 +6,23 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
-	"github.com/tangxusc/webcmd/pkg/client/cmd"
+	"github.com/tangxusc/webcmd/pkg/server/cmd"
 	"io"
-	"os/exec"
 	"strings"
 	"time"
 )
 
+type EventHandler func(event *cmd.CmdEvent) (*cmd.CmdResult, error)
+
 type Client struct {
-	url string
+	url          string
+	eventHandler EventHandler
 }
 
-func NewClient(url string) *Client {
+func NewClient(url string, handler EventHandler) *Client {
 	return &Client{
-		url: url,
+		url:          url,
+		eventHandler: handler,
 	}
 }
 
@@ -108,15 +111,20 @@ func (client *Client) listen(ctx context.Context, conn *websocket.Conn, results 
 				break
 			}
 
-			result, err := execCmd(event)
-			if err != nil {
-				result.Data = []byte(fmt.Sprint(err.Error()))
-			}
-			if timeOut(event) {
-				logrus.Warnf("消息过期,一致性,但不发送,丢弃:%v", event.Id)
-				break
-			}
-			results <- result
+			go func(e *cmd.CmdEvent) {
+				result, err := client.eventHandler(e)
+				if err != nil {
+					result = &cmd.CmdResult{
+						Id: e.Id,
+					}
+					result.Data = []byte(fmt.Sprint(err.Error()))
+				}
+				if timeOut(e) {
+					logrus.Warnf("消息过期,一致性,但不发送,丢弃:%v", e.Id)
+					return
+				}
+				results <- result
+			}(event)
 		}
 	}
 }
@@ -146,43 +154,4 @@ func readCmd(conn *websocket.Conn) (string, error) {
 func timeOut(event *cmd.CmdEvent) bool {
 	now := time.Now()
 	return now.After(event.EndTime)
-}
-
-func execCmd(event *cmd.CmdEvent) (*cmd.CmdResult, error) {
-	command := exec.Command("/bin/sh", "-c", event.Cmd)
-	//command := exec.Command(event.Cmd, event.Args...)
-	cmdResult := &cmd.CmdResult{
-		Id: event.Id,
-	}
-	out, e := command.StdoutPipe()
-	if e != nil {
-		return cmdResult, e
-	}
-	errOut, e := command.StderrPipe()
-	if e != nil {
-		return cmdResult, e
-	}
-	reader := io.MultiReader(errOut, out)
-	err := command.Start()
-	if err != nil {
-		return cmdResult, err
-	}
-	buf := make([]byte, 1024*10, 1024*10)
-	bytes := make([]byte, 0, 1024*10*2)
-	for {
-		n, err := reader.Read(buf)
-		if err != nil && err != io.EOF {
-			return cmdResult, err
-		}
-		bytes = append(bytes, buf[:n]...)
-		if err == io.EOF {
-			break
-		}
-	}
-	e = command.Wait()
-	if e != nil {
-		logrus.Warnf("执行命令出现错误,命令:%v,错误:%v", event.Cmd, e)
-	}
-	cmdResult.Data = bytes
-	return cmdResult, nil
 }
