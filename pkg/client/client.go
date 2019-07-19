@@ -20,6 +20,7 @@ type Client struct {
 }
 
 func NewClient(url string, handler EventHandler) *Client {
+	url = fmt.Sprintf("ws://%s/events", url)
 	return &Client{
 		url:          url,
 		eventHandler: handler,

@@ -1,26 +1,51 @@
 package main
 
 import (
-	"fmt"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 	"github.com/tangxusc/webcmd/pkg/client"
 	"github.com/tangxusc/webcmd/pkg/server/cmd"
 	"io"
-	"os"
 	"os/exec"
 	"time"
 )
 
-func main() {
+var server string
+var debug bool
+var retryRange int
+
+var command = cobra.Command{
+	Use:   "start",
+	Short: "start client",
+	Long:  "start client",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if debug {
+			logrus.SetLevel(logrus.DebugLevel)
+			logrus.SetReportCaller(true)
+		} else {
+			logrus.SetLevel(logrus.WarnLevel)
+		}
+		for {
+			newClient := client.NewClient(server, execCmd)
+			newClient.Start()
+			time.Sleep(time.Second * time.Duration(retryRange))
+		}
+	},
+}
+
+func init() {
 	logrus.SetFormatter(&logrus.TextFormatter{})
-	logrus.SetLevel(logrus.DebugLevel)
-	//logrus.SetReportCaller(true)
-	url := os.Args[1]
-	url = fmt.Sprintf("ws://%s/events", url)
-	for {
-		newClient := client.NewClient(url, execCmd)
-		newClient.Start()
-		time.Sleep(time.Second * 5)
+
+	command.PersistentFlags().StringVarP(&server, "server", "s", "127.0.0.1:8080", "server host:port, example: 127.0.0.1:8080")
+	command.PersistentFlags().BoolVarP(&debug, "debug", "v", false, "debug mod")
+	command.PersistentFlags().IntVarP(&retryRange, "retry time", "r", 5, "retry time")
+	_ = command.MarkPersistentFlagRequired("server")
+}
+
+func main() {
+	e := command.Execute()
+	if e != nil {
+		println(e.Error())
 	}
 }
 
