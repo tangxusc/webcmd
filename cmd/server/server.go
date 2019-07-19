@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 	"github.com/tangxusc/webcmd/pkg/server/conn_manager"
 	"net/http"
 	_ "net/http/pprof"
@@ -76,45 +78,69 @@ var indexHtml = `
 </body>
 </html>
 `
+var debug bool
+var port string
+
+var command = cobra.Command{
+	Use:   "start",
+	Short: "start server",
+	Long:  "start server",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if debug {
+			logrus.SetLevel(logrus.DebugLevel)
+			logrus.SetReportCaller(true)
+			//性能分析
+			go func() {
+				http.ListenAndServe(":8081", nil)
+			}()
+		} else {
+			logrus.SetLevel(logrus.WarnLevel)
+		}
+
+		todo, _ := context.WithCancel(context.TODO())
+		manager := conn_manager.NewConnManager()
+		manager.Start(todo)
+
+		engine := gin.Default()
+		//engine.LoadHTMLGlob("/home/tangxu/openProject/webcmd/cmd/server/*.html")
+		engine.GET("/events", gin.WrapF(func(writer http.ResponseWriter, request *http.Request) {
+			_, e := manager.Upgrade(writer, request, todo)
+			if e != nil {
+				panic(e.Error())
+			}
+		}))
+		engine.GET("/node/:node/cmd/", func(ctx *gin.Context) {
+			nodeString := ctx.Param("node")
+			query := ctx.Query("cmd")
+
+			cmdChan := manager.SendCmd(nodeString, query)
+			result := <-cmdChan
+
+			if result == nil {
+				logrus.Warnf("消息未收到回复:result,nil")
+				ctx.Data(http.StatusInternalServerError, contentType, nil)
+				return
+			}
+			ctx.Data(http.StatusOK, contentType, result.Data)
+		})
+		engine.GET("/index", func(ctx *gin.Context) {
+			//ctx.HTML(http.StatusOK, "index.html", "")
+			ctx.Data(http.StatusOK, "text/html", []byte(indexHtml))
+		})
+
+		return engine.Run(fmt.Sprintf(":%s", port))
+	},
+}
+
+func init() {
+	logrus.SetFormatter(&logrus.TextFormatter{})
+	command.PersistentFlags().BoolVarP(&debug, "debug", "v", false, "debug model")
+	command.PersistentFlags().StringVarP(&port, "port", "p", "8080", "server port")
+}
 
 func main() {
-	logrus.SetFormatter(&logrus.TextFormatter{})
-	logrus.SetReportCaller(true)
-	logrus.SetLevel(logrus.DebugLevel)
-
-	todo, _ := context.WithCancel(context.TODO())
-	manager := conn_manager.NewConnManager()
-	manager.Start(todo)
-
-	engine := gin.Default()
-	//engine.LoadHTMLGlob("/home/tangxu/openProject/webcmd/cmd/server/*.html")
-	engine.GET("/events", gin.WrapF(func(writer http.ResponseWriter, request *http.Request) {
-		_, e := manager.Upgrade(writer, request, todo)
-		if e != nil {
-			panic(e.Error())
-		}
-	}))
-	engine.GET("/node/:node/cmd/", func(ctx *gin.Context) {
-		nodeString := ctx.Param("node")
-		query := ctx.Query("cmd")
-
-		cmdChan := manager.SendCmd(nodeString, query)
-		result := <-cmdChan
-
-		if result == nil {
-			logrus.Warnf("消息未收到回复:result,nil")
-			ctx.Data(http.StatusInternalServerError, contentType, nil)
-			return
-		}
-		ctx.Data(http.StatusOK, contentType, result.Data)
-	})
-	engine.GET("/index", func(ctx *gin.Context) {
-		//ctx.HTML(http.StatusOK, "index.html", "")
-		ctx.Data(http.StatusOK, "text/html", []byte(indexHtml))
-	})
-	//性能分析
-	go func() {
-		http.ListenAndServe(":8081", nil)
-	}()
-	engine.Run()
+	e := command.Execute()
+	if e != nil {
+		panic(e.Error())
+	}
 }
