@@ -7,6 +7,7 @@ import (
 	"github.com/tangxusc/webcmd/pkg/server/cmd"
 	"io"
 	"os/exec"
+	"runtime"
 	"time"
 )
 
@@ -50,7 +51,7 @@ func main() {
 }
 
 func execCmd(event *cmd.CmdEvent) (*cmd.CmdResult, error) {
-	command := exec.Command("/bin/sh", "-c", event.Cmd)
+	command := buildCommand(event.Cmd)
 	cmdResult := &cmd.CmdResult{
 		Id: event.Id,
 	}
@@ -85,4 +86,13 @@ func execCmd(event *cmd.CmdEvent) (*cmd.CmdResult, error) {
 	}
 	cmdResult.Data = bytes
 	return cmdResult, nil
+}
+
+func buildCommand(cmd string) *exec.Cmd {
+	switch runtime.GOOS {
+	case "linux":
+		return exec.Command("/bin/sh", "-c", cmd)
+	default:
+		return exec.Command("cmd", "/C", cmd)
+	}
 }

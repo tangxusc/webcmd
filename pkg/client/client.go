@@ -121,7 +121,7 @@ func (client *Client) listen(ctx context.Context, conn *websocket.Conn, results 
 					result.Data = []byte(fmt.Sprint(err.Error()))
 				}
 				if timeOut(e) {
-					logrus.Warnf("消息过期,一致性,但不发送,丢弃:%v", e.Id)
+					logrus.Warnf("消息过期,已经执行,但不发送,丢弃:%v", e.Id)
 					return
 				}
 				results <- result
