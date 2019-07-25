@@ -90,9 +90,9 @@ func execCmd(event *cmd.CmdEvent) (*cmd.CmdResult, error) {
 
 func buildCommand(cmd string) *exec.Cmd {
 	switch runtime.GOOS {
-	case "linux":
-		return exec.Command("/bin/sh", "-c", cmd)
-	default:
+	case "windows":
 		return exec.Command("cmd", "/C", cmd)
+	default:
+		return exec.Command("/bin/sh", "-c", cmd)
 	}
 }
