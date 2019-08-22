@@ -59,13 +59,11 @@ func (conn *WebSocketConn) Receive(ReceiveBus chan *cmd.CmdResult, ctx context.C
 		}
 	}()
 	c := conn.Conn
-	ints := make(chan int, 10)
 	for {
-		ints <- 1
 		select {
 		case <-ctx.Done():
 			return
-		case <-ints:
+		default:
 			messageType, r, err := c.NextReader()
 			logrus.Debugf("[%s] 读取到消息,消息类型:%v", conn.NodeName, messageType)
 			if err != nil {
